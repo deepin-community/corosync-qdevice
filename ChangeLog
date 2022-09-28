@@ -1,0 +1,565 @@
+2020-11-18  Jan Friesse  <jfriesse@redhat.com>
+
+	qnetd: Move client schedule disconnect handling
+	Client disconnect used to be per client fd in
+	the qnetd_client_net_socket_poll_loop_set_events_cb. Problem is, that
+	disconnect calls algorithm which may send message to other client
+	with fd which was already processed in the pr-poll-loop so POLLOUT is
+	not set till new loop exec is called (and that usually happens
+	because old one timeouts). To reproduce this problem use
+	ffsplit and make qnetd disconnect one of the clients - ffsplit
+	needs to send ack/nack votes, but it doesn't send them during
+	first iteration and waits for dpd timeout.
+
+	qnetd-algo-ffsplit: Simplify KAP Tie-breaker logic
+	Also make it more reliable.
+
+	qnetd: Improve dead peer detection
+	Previously dead peer detection timer was scheduled every dpd_interval,
+	added dpd_interval to all of the clients timestamp and if timestamp was
+	larger than client hearbeat interval * 1.2 then check if client sent
+	some message. If so, flag was reset.
+
+	This method was source of number of problems so instead different method
+	is now used.
+
+	Every single client has its own timer with timeout based on
+	(configurable) dpd_interval_coefficient and multiplied with
+	client heartbeat timeout. When message is received from client timer is
+	rescheduled. When timer callback is called (= client doesn't sent
+	message during timeout) then client is disconnected.
+
+2020-11-13  Jan Friesse  <jfriesse@redhat.com>
+
+	qnet-config: Add space to string concat
+
+	timer-list: Add functions for get and set interval
+
+	timer-list: Rename delete and reschedule ops
+	Add entry to the name so it is more evident change is happening to the
+	entry and not to the list.
+
+	utils: Add utils_strtod
+
+	qdevice: Handle configurations without ring0_addr
+	Configuration without ring0_addr is valid for new Corosync.
+
+	Big thanks to Fabian-Gruenbichler who reported the problem and
+	Oyvind Albrigtsen for englishify the error message.
+
+	qdevice: Configuration without nodelist is invalid
+
+	qdevice-cmap: Load clear node high bit only once
+
+	qdevice-cmap: Fix clear high node bit typo
+	It's really bit, not byte.
+
+2020-11-11  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice-net-ipc-cmd: Fix compiler warning
+
+2020-11-11  Fabio M. Di Nitto  <fdinitto@redhat.com>
+
+	devel: add corosync-qdevice.pc file for pcs to use
+	add corosync-qdevice-devel package for future
+
+	Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+
+2020-11-05  Jan Friesse  <jfriesse@redhat.com>
+
+	tests: Fix assert problems
+
+	timer-list: Improve efficiency of delete operation
+	Position in entries array, heap_pos, is added to the entry.
+	This has to be kept in sync for every move so new internal set/get
+	functions are added too.
+
+	This removes need for searching for entry.
+
+2020-11-04  Jan Friesse  <jfriesse@redhat.com>
+
+	test-timer-list: Ignore poll errors
+
+	tlv: Check dynar_cat result
+
+	test-process-list: Fix few bugs
+
+	msg: Check cat result on adding msg type and size
+
+	timer-list: Implement heap based timer-list
+	Previous timer-list was naive implementation of priority queue and very
+	slow when number of timers increased. This was not a problem because
+	only few timers were used. But with removal of dpd timer and replacement
+	with per-connection timer this may become problematic.
+
+	Solution is to use binary heap based priority queue which is much
+	faster.
+
+	pr-poll-loop: Add queue header include
+	Also add same includes to qnetd-alog-utils header file.
+
+2020-10-27  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice-ipc: Fix dereference bug
+
+	qnet: Add support for keep active partition vote
+	This patch adds qdevice-net part of keep active partition tie breaker
+	functionality. It's enabled by default.
+
+	When tie happens prefer partition with members of
+	previously active (quorate) partition. This is hard-coded
+	behavior of LMS algorithm so this setting affects only
+	FFSplit algorithm. By default it is disabled for backwards
+	compatibility.
+
+	This solves problem with FFSplit when node A (with lowest id) is killed,
+	node B gets vote and then node A starts up and creates single node
+	membership and gets vote.
+
+	qnetd: Fix NULL dereference of client
+	Shouldn't happen but be rather safe.
+
+	Also add more comments.
+
+	qdevice-net-heuristics: Fix log message
+
+	qdevice: Fix set option and set option reply
+	To match the specification add heartbeat timeout only when requested.
+
+	Also add qdevice client method to send option message.
+
+2020-09-22  Jan Friesse  <jfriesse@redhat.com>
+
+	LICENSE: Update copyright date
+
+	qnetd: Add support for keep active partition vote
+	When tie happens prefer partition with members of
+	previously active (quorate) partition. This is hard-coded
+	behavior of LMS algorithm so this setting affects only
+	FFSplit algorithm. By default it is disabled for backwards
+	compatibility.
+
+	This solves problem with FFSplit when node A (with lowest id) is killed,
+	node B gets vote and then node A starts up and creates single node
+	membership and gets vote.
+
+2020-09-21  Jan Friesse  <jfriesse@redhat.com>
+
+	README: Fix typos
+
+	timer-list: Add test
+
+	timer-list: Return error on adding NULL callback
+
+	qnetd: Fix dpd timer
+	With default config of running dpd timer every 10 second and waiting for
+	2 * client_timeout to clear message received flag and then waiting
+	another 2 * client_timeout without message received it was possible that
+	client was marked as a dead after more than 40 seconds making qdevice to
+	stop sending votequorum hearbeat for too long so corosync lost votes
+	from qdevice.
+
+	This patch is simpler solution which just changes default dpd timer to
+	1 second and timeout to 1.2 * client_timeout.
+
+	qdevice-votequorum: Fix typo in log message
+
+2020-08-31  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Port qdevice to use pr-poll-loop
+
+	qdevice-net: Log adds newline automatically
+
+	qnetd: Return error code based on ipc closed
+	So restore pre pr-poll-loop behavior.
+
+	pr-poll-loop: Fix set_events_cb return code
+	When events is set to 0 and set_events return -2 it was changed to -1.
+	Solution is to check, if return code was 0 and only if so, change return
+	code to -1 if events is 0.
+
+2020-08-28  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Fix connect heuristics result callback
+	Previous patch 8dbf1bc8b0f348e468e7c70448705ac92dab68ea was wrong
+	because it fixed the crash but made qdevice not work at all.
+
+	Correct solution is to test, if state is
+	QDEVICE_NET_INSTANCE_STATE_WAITING_INIT_REPLY.
+
+	pr-poll-loop: Add pre poll callbacks
+
+	pr-poll-loop: Pass PRPollDesc for prfd events
+
+	pr-poll-loop: Add support for PR_POLL_EXCEPT
+	Map PR_POLL_EXCEPT to POLLPRI (as NSPR does).
+
+	qnetd: Move pr_poll_loop_exec call to function
+
+2020-08-25  Jan Friesse  <jfriesse@redhat.com>
+
+	qnetd: Log pr_poll_loop_add,del errors properly
+
+	qnetd: Remove unneeded pprio include
+
+	qnetd: Remove write callback on listening sockets
+	IPC and TLS sockets are read only, so write callbacks should never
+	happen (specifically tested in pr-poll-loop test) so remove them.
+
+	qdevice: Initial port to use pr-poll-loop
+	Only qdevice_instance_wait_for_initial_heuristics_exec_result is ported
+	for now.
+
+	pr-poll-loop: Return error code if PR_Poll fails
+
+	heuristics: Remove qdevice instance pointer
+	Heuristics is designed to be component of its own, which doesn't depend
+	on qdevice_instance. Removing qdevice_instance pointer was easy as soon
+	as exec notifier got two user data pointers.
+
+2020-08-19  Jan Friesse  <jfriesse@redhat.com>
+
+	tests: Enhance pr-poll-loop test
+
+	tests: Add pr-poll-loop test
+
+	pr-poll-loop: Do not add FD when events is empty
+
+2020-08-12  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Fix connect heuristics result callback
+	Qdevice may crash if server disconnect before connect
+	heuristics callback is processed.
+
+	This is quite hard to reproduce without adding sleep before
+	qdevice_net_heuristics_exec_after_connect call.
+
+	Solution is to check if qdevice is still connected and if it doesn't,
+	just throw away connect heuristics results.
+
+	qdevice: Add space before bracket
+
+	qdevice: Use EXIT_SUCCESS and EXIT_FAILURE codes
+
+	qnetd: Do not call ffsplit_do on shutdown
+
+	qnetd: Migrate main loop to pr-poll-loop
+
+	pr-poll-loop: Add main poll loop based on PR_Poll
+	Add main loop abstraction based on PR_Poll with set_events, read, write
+	and error callbacks.
+
+2020-07-15  Jan Friesse  <jfriesse@redhat.com>
+
+	configure: Use default systemd path with prefix
+	Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+
+	build: Use git-version-gen during specfile build
+	Instead of copying parts of git-version-gen for spec target use
+	git-version-gen directly and parse final version into components
+	(rpmver, alphatag, numcomm) and use them.
+
+	Main reason is to simplify code a bit (sed scripts are a bit repetitive
+	tho), reuse the code and also allow building of RPM from dist tarball
+	generated from non-tagged commit or dirty git (not very useful).
+
+	The code relies on fact, that hyphen is never used in tagged release
+	name.
+
+	Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+
+	build: Update git-version-gen
+	Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+
+2020-03-13  liangxin1300  <XLiang@suse.com>
+
+	qdevice: Change log level to NOTICE on PASS
+	Previously when heuristics result became PASS it was logged as an error.
+	It shouldn't be and error message so change it to LOG_NOTICE level.
+
+	Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+
+2019-11-27  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Add prototype of __vsyslog_chk
+
+2019-09-12  Kumabuchi Kenji  <k.kumabuchi+curvygrin@gmail.com>
+
+	init: change restart to on-failure for qdevice
+	Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+
+2019-08-14  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Add chk variant of vsyslog to test-log
+
+2019-08-13  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Add header files to list of test sources
+
+	qdevice: Add log test
+
+	qdevice: Free memory used by log
+
+	tests: Add utils_parse_bool_str test
+
+2019-08-12  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Configurable log priority bump
+
+	qnetd: Use log-common for nodelist debug dump
+
+	qdevice: Merge msg_decode_error functions
+
+	qdevice: Import log instead of qdevice-log
+	and move qdevice-log-debug to log-common to share it with qnetd.
+
+	qdevice: Use log instead of libqb log
+
+	qnetd: Add function to set log target
+
+	qnetd: Check log initialization error
+
+	qnetd: Fix double -d description
+
+	qnetd: Rename qnetd-log.c to log.c
+	And remove qnetd_ prefix from function names.
+
+2019-06-10  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Fix qdevice_heuristics_destroy error
+	When daemonization is used, heuristics worker is not a child of
+	the corosync-qdevice process any longer so it's not possible
+	to wait for its exit.
+
+	configure: Add user-flags configure option
+	configure.ac adds by optimization and debug flags by default. This is
+	not always intended so conifgure option is added.
+
+	Support for using this option in specfile is added too.
+
+	Also fix GDB_CFLAGS typo. GDB_FLAGS (without C)
+	is the correct name of variable to print in the summary.
+
+2019-04-25  Jan Friesse  <jfriesse@redhat.com>
+
+	man: Fix corosync-qdevice default connect_timeout
+
+2019-03-20  Jan Friesse  <jfriesse@redhat.com>
+
+	spec: Use install -p and add license
+
+2019-03-19  Jan Friesse  <jfriesse@redhat.com>
+
+	qnetd: Check existence of NSS DB dir before fork
+	Previously, when user tried start corosync-qnetd without
+	initialized NSS database then generic (not very helpful
+	and misleading) NSS error was logged
+	"NSS error (-8015): The certificate/key database is in an old,
+	unsupported format.".
+
+	Solution is to check if it's possible to open NSS DB directory and
+	display (usually much more informative) result of strerror function.
+
+	Such check is called before fork, so init system can return error code
+	during start.
+
+	Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+
+2018-11-26  Jan Friesse  <jfriesse@redhat.com>
+
+	certutils: Fix warnings found by coverity
+
+2018-11-15  Jan Friesse  <jfriesse@redhat.com>
+
+	init: Fix init scripts to work with containers
+	Previously init scripts were not using pid file so pidof was used. This
+	is usually not a problem, but when containers are used it may result to
+	killing improper instance when issued on host.
+
+	Solution is to always use pidfile.
+
+	Also try to use LSB complaint status codes.
+
+	Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+
+2018-11-07  Jan Friesse  <jfriesse@redhat.com>
+
+	configure: move to AC_COMPILE_IFELSE
+	from AC_PREPROC_IFELSE which is strongly discouraged.
+
+	Our detection system was very weak and recent versions of clang did
+	show that PREPROC_IFELFE (cpp) would enable warning options that
+	the compiler does not support (clang).
+
+	Use a full compilation test to detect what works and what doesn't.
+
+	Based on knet patch 88491f27375a9e8aceb946853a1abf4d23ebb8f3.
+
+	Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+
+2018-09-03  Jan Friesse  <jfriesse@redhat.com>
+
+	git-version-gen: Fail on UNKNOWN version
+	Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+
+	build: Support for git archive stored tags
+	Attempt to solve problem with git archive generated tarballs
+	(used for example by github when release is downloaded) which are no
+	longer git tree and (in contrast to officially released tarballs) also
+	doesn't contain .tarball-version file so git-version-gen script simply
+	cannot obtain valid version info.
+
+	Solution is based on using gitattributes which is instructs git to
+	replace string in the .gitarchivever file by known ref names.
+	git-version-gen is enhanced to support this file and tries to parse
+	any string which looks like "tag: v[0-9]+.[0-9]+.[0-9]". If such string
+	is found it's used as a version. This file is used as a last attempt and
+	other methods (.tarball-version, git abbrev) have precedence.
+
+	Based on idea stated by Jan Pokorný <jpokorny@redhat.com>.
+
+	Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+
+2018-08-27  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice: Propagate error to exit code
+	Net model never returned error when qdevice_model_run was called. This
+	was incorrect because with exception of local ipc close all other
+	disconnect reasons are errors.
+
+	Solution is to return proper error code.
+
+	Also instead of exit right after qdevice_model_run it's better to store
+	result value, try clean resources and use stored value to return correct
+	exit code.
+
+2018-08-22  Jan Friesse  <jfriesse@redhat.com>
+
+	build: Remove WITH_LIST
+	WITH_LIST is replaced in favor of bcond generator.
+
+	spec: Autogenerate bcond options based on config
+	Inspired by kronosnet spec file generator.
+
+2018-08-21  Jan Friesse  <jfriesse@redhat.com>
+
+	spec: add exlicit docdir
+	OpenSUSE does not ship docs in the normal dir and their rpm macro
+	does not appear to set it for us.
+
+	Based on corosync 30c7f3319f003efa1abeb2173eef9e5c7943ae5b.
+
+	spec: Use different BuildRequires for SUSE
+
+	init: disable stderr output in systemd unit file
+	Usually both syslog and stderr are enabled so log entries are duplicated
+	in journal. Solution is to use similar patch as corosync
+	c34208ad402b45f52b5d3ee8d2a08df0779ec9aa and disable stderr.
+
+	tests: Enlarge timeout for process-list test
+
+2018-08-09  Jan Friesse  <jfriesse@redhat.com>
+
+	spec: Add explicit gcc build dependency
+
+	config: Remove unneeded qb includes
+
+	qnetd-certutil: Add -G option
+
+	man: Document NSS database conversion
+	This is not needed at least for cert8 -> cert9, but it's still nice to
+	have it documented. Also document NSS_IGNORE_SYSTEM_POLICY=1 workaround.
+
+	qdevice-net-certutil: Implement scp wrapper
+	Standard scp doesn't handle copy of file from remote machine to remote
+	machine very well when agent forwarding is used and no key exists
+	between the machines.
+
+	certutil: Add support for new NSS database format
+	New NSS database uses files cert9.db, key4.db and pkcs11.txt. Add
+	support for these files into cert utilities.
+
+	gitignore: Add testsuite results
+
+2018-08-08  Jan Friesse  <jfriesse@redhat.com>
+
+	qdevice-cmap: Fix compiler warning on Sparc/ARM
+
+	tests: Notify process-list after trap was created
+	Previously there was no waiting for establish of bash trap.
+	This may result in situation when sigint/term was send before trap
+	making test fail.
+
+	Solution is to catch the sigusr1 and sigusr2 signals in tests and wait
+	till these signals are sent by bash after trap is established.
+
+2018-05-02  Jan Friesse  <jfriesse@redhat.com>
+
+	unix-socket: Fix snprintf warning
+	Base N on sizeof sun_path instead of strlen of input path.
+
+2018-04-27  Jan Friesse  <jfriesse@redhat.com>
+
+	tests: enlarge process-list timeouts
+
+	tests: process-list add stdlib include
+
+	tests: Fix process-list test to work on FreeBSD
+	FreeBSD true and false commands are installed in the /usr/bin prefix
+	instead of Linux /bin.
+
+2018-04-20  Ferenc Wágner  <wferi@debian.org>
+
+	Fix typo: sucesfully -> successfully
+	Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+
+2018-04-19  Bin Liu  <bliu@suse.com>
+
+	qdevice: optarg should be str in init_from_cmap
+	Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+
+2018-04-12  Jan Friesse  <jfriesse@redhat.com>
+
+	spec: Remove unused clean section
+
+2018-04-03  Jan Friesse  <jfriesse@redhat.com>
+
+	msgio: Remove unused code
+	Blocking version of send was used in the very early phases of qdevice
+	development and it's not used any longer, so it make sense to delete
+	it.
+
+2018-03-23  Jan Friesse  <jfriesse@redhat.com>
+
+	msgio: Fix reading of msg longer than PR_INT32_MAX
+
+2018-03-02  Jan Friesse  <jfriesse@redhat.com>
+
+	qnetd: Replace strtol by strtonum
+
+	qdevice: Replace strtol by strtonum
+
+	Add safer wrapper of strtoll
+
+	Check if user_data can be dereferenced
+
+	Nodelist is set into string not array
+
+	Fix NULL pointer dereference
+
+	Quote certutils scripts properly
+	Also remove unused variables.
+
+	init: Quote subshell result properly
+
+2018-01-25  Jan Friesse  <jfriesse@redhat.com>
+
+	spec: Modernize spec file a bit
+	Thanks to Robert-André Mauchin <zebob.m@gmail.com> for spec file review
+	and comments.
+
+2018-01-23  Jan Friesse  <jfriesse@redhat.com>
+
+	Initial import from corosync codebase
+	Used the code from corosync master
+	(31ddba64a2726bcedf81eb84df2e2da4846832f7)

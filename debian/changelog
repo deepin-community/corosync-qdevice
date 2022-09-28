@@ -1,0 +1,72 @@
+corosync-qdevice (3.0.1-1) unstable; urgency=medium
+
+  [ Rafael David Tinoco ]
+  * [b1e1c6d] * Skip autopkgtest for unprivileged containers: (LP: #1837090)
+    - d/t/control: mark corosync-qnetd test as skippable
+    - d/t/qdevice: skip if memlock can't be set to unlimited by root
+
+  [ Debian Janitor ]
+  * [a0767ea] Set upstream metadata fields: Bug-Database, Bug-Submit,
+    Repository, Repository-Browse.
+    Fixes: lintian: upstream-metadata-file-is-missing
+    Fixes: lintian: upstream-metadata-missing-bug-tracking
+    Fixes: lintian: upstream-metadata-missing-repository
+
+  [ Valentin Vidic ]
+  * [5bad35d] Enable Salsa CI
+  * [f643e3d] New upstream version 3.0.1
+  * [52f5495] Refresh patches for new version
+  * [cab84d5] Use debhelper v13
+  * [adaa27b] Set systemd installation directory
+  * [354c87a] Install sysconfig files
+  * [ce70e2f] Install pkgconfig config
+  * [9c92e43] Update Standards-Version to 4.5.1
+
+ -- Valentin Vidic <vvidic@debian.org>  Wed, 25 Nov 2020 15:46:09 +0100
+
+corosync-qdevice (3.0.0-5) unstable; urgency=medium
+
+  * [03f7f53] Set Default-Start runlevels for corosync-qdevice (Closes: #932346)
+  * [1fe4fb7] Use debhelper v12
+  * [765db51] Use Standards-Version 4.5.0
+  * [8fd5d8f] Add Rules-Requires-Root
+
+ -- Valentin Vidic <vvidic@debian.org>  Tue, 07 Apr 2020 22:24:07 +0200
+
+corosync-qdevice (3.0.0-4) unstable; urgency=medium
+
+  * [c680521] Revert "Require pacemaker for qdevice autopkgtest"
+    The actual bug is the Corosync daemon not running after installation,
+    which was fixed by switching to Debhelper compatibility level 12 in the
+    3.0.1-2 upload of Corosync.
+
+ -- Ferenc Wágner <wferi@debian.org>  Mon, 04 Feb 2019 00:33:24 +0100
+
+corosync-qdevice (3.0.0-3) unstable; urgency=medium
+
+  * [2772eac] Fix Vcs-Browser URL
+  * [8041dc0] Require pacemaker for qdevice autopkgtest (Closes: #921265)
+  * [fd9d7ba] Use minimal upstream signing key
+
+ -- Valentin Vidic <vvidic@debian.org>  Sun, 03 Feb 2019 23:11:20 +0100
+
+corosync-qdevice (3.0.0-2) unstable; urgency=medium
+
+  * [ee08d93] Fix cert database upgrade (Closes: #919901)
+  * [631309b] Add autopkgtests
+  * [d03ebb2] Add myself to Uploaders
+
+ -- Valentin Vidic <vvidic@debian.org>  Wed, 30 Jan 2019 21:34:53 +0100
+
+corosync-qdevice (3.0.0-1) unstable; urgency=medium
+
+  * [8264197] Initial packaging after the split from Corosync
+  * [b2bcd82] Get rid of the empty default files
+  * [6fbd903] Do not enable corosync-qdevice the Debhelper 12 way
+  * [70cddbb] Do not generate HTML versions of the man pages
+  * [d31f9b1] Skip dh_dwz until further investigation
+  * [f3ccfeb] Update the qnetd NSS DB if necessary
+  * [320d791] New patch: Use PrivateTmp=yes for hardening in systemd service
+    files
+
+ -- Ferenc Wágner <wferi@debian.org>  Fri, 04 Jan 2019 02:45:19 +0100

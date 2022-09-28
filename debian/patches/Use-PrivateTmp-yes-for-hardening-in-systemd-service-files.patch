@@ -1,0 +1,29 @@
+From: =?utf-8?q?Ferenc_W=C3=A1gner?= <wferi@debian.org>
+Date: Thu, 3 Jan 2019 22:54:35 +0100
+Subject: Use PrivateTmp=yes for hardening in systemd service files
+
+---
+ init/corosync-qdevice.service.in | 1 +
+ init/corosync-qnetd.service.in   | 1 +
+ 2 files changed, 2 insertions(+)
+
+--- a/init/corosync-qdevice.service.in
++++ b/init/corosync-qdevice.service.in
+@@ -13,6 +13,7 @@
+ Restart=on-failure
+ RuntimeDirectory=corosync-qdevice
+ RuntimeDirectoryMode=0770
++PrivateTmp=yes
+ 
+ [Install]
+ WantedBy=multi-user.target
+--- a/init/corosync-qnetd.service.in
++++ b/init/corosync-qnetd.service.in
+@@ -14,6 +14,7 @@
+ User=coroqnetd
+ RuntimeDirectory=corosync-qnetd
+ RuntimeDirectoryMode=0770
++PrivateTmp=yes
+ 
+ [Install]
+ WantedBy=multi-user.target
